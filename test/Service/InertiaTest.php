@@ -301,6 +301,59 @@ class InertiaTest extends TestCase
         $this->assertSame($validJson, $jsonResponse);
     }
 
+    public function testRenderFiltersLazyPropsWhenPartialComponentMismatch()
+    {
+        $request = $this->prophesize(ServerRequestInterface::class);
+        $request->hasHeader('X-Inertia')->willReturn(true);
+        $request->hasHeader('X-Inertia-Partial-Data')->willReturn(true);
+        $request->hasHeader('X-Inertia-Partial-Except')->willReturn(false);
+        $request->hasHeader('X-Inertia-Reset')->willReturn(false);
+        $request->getHeaderLine('X-Inertia-Partial-Component')->willReturn('other-component');
+        $request->getHeaderLine('X-Inertia-Partial-Data')->willReturn('key1');
+        
+        // key1 is LazyProp, should be filtered out because component mismatch
+        // key2 is not LazyProp, should be kept
+        $validJson = '{"component":"component","props":{"key2":"value2"},"url":"http:\/\/example.com","version":null,"encryptHistory":false,"clearHistory":false}';
+        $jsonResponse = null;
+
+        $uri = $this->prophesize(UriInterface::class);
+        $uri->__toString()->willReturn('http://example.com');
+        $request->getUri()->willReturn($uri->reveal());
+
+        $response = $this->prophesize(ResponseInterface::class);
+        $responseFactory = $this->prophesize(ResponseFactoryInterface::class);
+        $responseFactory->createResponse()->willReturn($response);
+
+        $stream = $this->prophesize(StreamInterface::class);
+        $streamFactory = $this->prophesize(StreamFactoryInterface::class);
+        $streamFactory->createStream(Argument::type('string'))->will(function ($args) use (&$jsonResponse, $stream){
+            $jsonResponse = $args[0];
+            return $stream->reveal();
+        });
+
+        $rootViewProvider = $this->prophesize(RootViewProviderInterface::class);
+
+        $response->withBody($stream->reveal())->willReturn($response);
+        $response->withHeader('Content-Type', 'application/json')->willReturn($response);
+
+        $inertia = new Inertia(
+            $request->reveal(),
+            $responseFactory->reveal(),
+            $streamFactory->reveal(),
+            $rootViewProvider->reveal()
+        );
+
+        $inertia->render(
+            'component',
+            [
+                'key1' => Inertia::lazy(fn() => 'value1'),
+                'key2' => 'value2'
+            ]
+        );
+
+        $this->assertSame($validJson, $jsonResponse);
+    }
+
     public function testLocationReturnResponseWithLocationAsStringWithNotExistingInertiaHeader()
     {
         $request = $this->prophesize(ServerRequestInterface::class);

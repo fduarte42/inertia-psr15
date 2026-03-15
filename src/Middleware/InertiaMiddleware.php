@@ -75,9 +75,11 @@ class InertiaMiddleware implements MiddlewareInterface
      */
     private function checkVersion(Request $request, Response $response): Response
     {
+        $version = $this->inertia->getVersion();
         if (
             'GET' === $request->getMethod()
-            && $request->getHeaderLine('X-Inertia-Version') !== $this->inertia->getVersion()
+            && $version !== null
+            && $request->getHeaderLine('X-Inertia-Version') !== (string)$version
         ) {
             return $response->withStatus(409)->withHeader('X-Inertia-Location', (string)$request->getUri());
         }

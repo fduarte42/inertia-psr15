@@ -40,20 +40,26 @@ class Inertia implements InertiaInterface
             ->withUrl($url ?? (string)$this->request->getUri());
 
         $only = [];
-        if ($this->request->hasHeader('X-Inertia-Partial-Data')) {
+        if (
+            $this->request->hasHeader('X-Inertia-Partial-Data')
+            && $this->request->getHeaderLine('X-Inertia-Partial-Component') === $component
+        ) {
             $only = explode(',', $this->request->getHeaderLine('X-Inertia-Partial-Data'));
         }
 
         $except = [];
-        if ($this->request->hasHeader('X-Inertia-Partial-Except')) {
+        if (
+            $this->request->hasHeader('X-Inertia-Partial-Except')
+            && $this->request->getHeaderLine('X-Inertia-Partial-Component') === $component
+        ) {
             $except = explode(',', $this->request->getHeaderLine('X-Inertia-Partial-Except'));
         }
 
-        if ($only && $this->request->getHeaderLine('X-Inertia-Partial-Component') === $component) {
+        if ($only) {
             $props = array_intersect_key($props, array_flip((array) $only));
         }
 
-        if ($except && $this->request->getHeaderLine('X-Inertia-Partial-Component') === $component) {
+        if ($except) {
             $props = array_diff_key($props, array_flip((array) $except));
         }
 
